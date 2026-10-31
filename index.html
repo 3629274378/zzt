@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zzt · 下载站</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FFFFFF'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='18' font-weight='bold' fill='%232B4EFF' text-anchor='middle'%3Ez%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#F7F6F3;--surface:#FFFFFF;--surface-2:#F0EEE9;--line:#E5E2DB;
+    --text:#1A1A1A;--muted:#8A8880;--accent:#2B4EFF;--danger:#E5484D;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 22px 80px}
+  header{display:flex;justify-content:space-between;align-items:flex-start;
+    padding-bottom:22px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .logo{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .logo .dot{color:var(--accent)}
+  .hero h1{font-size:clamp(28px,5vw,44px);font-weight:800;letter-spacing:-1px;
+    line-height:1.15;margin-bottom:10px}
+  .hero p{color:var(--muted);max-width:560px;margin-bottom:8px}
+  .meta{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+    color:var(--muted);margin-top:14px;display:flex;gap:18px;flex-wrap:wrap}
+  .meta b{color:var(--text);font-weight:600}
+  .empty{border:1px dashed var(--line);border-radius:var(--radius);
+    padding:48px 22px;text-align:center;color:var(--muted);margin-top:28px}
+  .empty .big{font-size:32px;margin-bottom:8px;color:var(--line);font-weight:800}
+  .filelist{margin-top:28px;display:flex;flex-direction:column;gap:10px}
+  .file{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;transition:border-color .15s}
+  .file:hover{border-color:#C8C4BA}
+  .file .name{font-weight:600;word-break:break-all;min-width:0}
+  .file .sub{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+    color:var(--muted);margin-top:2px}
+  .file .size{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;
+    color:var(--muted);white-space:nowrap}
+  .btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+    padding:8px 14px;border-radius:8px;white-space:nowrap;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#1e3cd9}
+  .hint{font-size:12px;color:var(--muted);margin-top:18px;line-height:1.7;
+    background:var(--surface);border-left:2px solid var(--accent);padding:12px 14px;border-radius:6px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  @media (max-width:640px){
+    .file{grid-template-columns:1fr auto;grid-template-rows:auto auto;row-gap:8px}
+    .file .size{grid-column:1/-1;order:3}
+    .file .actions{order:4;display:flex;gap:8px;justify-content:flex-end}
+    .wrap{padding:20px 16px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="./">zzt<span class="dot">.</span></a>
+  </header>
+
+  <div class="hero">
+    <h1>文件下载</h1>
+    <p>这里是 zzt 分享的文件。点击下载即可保存到本地。</p>
+    <div class="meta">
+      <span>共 <b id="front-count">…</b> 个文件</span>
+    </div>
+  </div>
+
+  <div id="front-empty" class="empty" style="display:none">
+    <div class="big">&empty;</div>
+    <div>还没有任何文件。</div>
+  </div>
+
+  <div class="filelist" id="front-list"></div>
+
+  <div class="hint">
+    本站由 GitHub Pages 托管，地址固定不变。要新增文件，把文件放进仓库的
+    <code>files</code> 目录并提交即可，刷新本页就能看到。
+  </div>
+
+  <footer>
+    <span>&copy; zzt &middot; 个人下载站</span>
+    <span class="mono">GitHub Pages</span>
+  </footer>
+</div>
+
+<script>
+// ===== 仓库配置（建仓后填入）=====
+const OWNER = "3629274378";
+const REPO  = "zzt";
+const API = "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/files";
+
+function fmtSize(n){
+  if(n<1024) return n+' B';
+  if(n<1024*1024) return (n/1024).toFixed(1)+' KB';
+  if(n<1024*1024*1024) return (n/1024/1024).toFixed(1)+' MB';
+  return (n/1024/1024/1024).toFixed(2)+' GB';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function load(){
+  const list = document.getElementById('front-list');
+  const empty = document.getElementById('front-empty');
+  let files = [];
+  try {
+    const r = await fetch(API, {headers:{'Accept':'application/vnd.github+json'}});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    files = data.filter(x => x.type === 'file');
+  } catch (e) {
+    document.getElementById('front-count').textContent = '—';
+    list.innerHTML = '<div class="empty">文件列表暂时加载失败（可能是接口限流），请稍后刷新再试。</div>';
+    return;
+  }
+  document.getElementById('front-count').textContent = files.length;
+  empty.style.display = files.length ? 'none' : 'block';
+  list.innerHTML = files.map(f => `
+    <div class="file">
+      <div>
+        <div class="name">${esc(f.name)}</div>
+      </div>
+      <div class="size">${fmtSize(f.size)}</div>
+      <div class="actions">
+        <a class="btn btn-primary" href="files/${encodeURIComponent(f.name)}" download>下载</a>
+      </div>
+    </div>`).join('');
+}
+load();
+</script>
+</body>
+</html>
